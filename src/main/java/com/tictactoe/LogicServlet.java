@@ -1,5 +1,6 @@
 package com.tictactoe;
 
+import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.WebServlet;
 import javax.servlet.http.HttpServlet;
@@ -19,7 +20,34 @@ public class LogicServlet extends HttpServlet {
 
         int index = getSelectedIndex(req);
 
+        Sign sign = field.getField().get(index);
+
+        if (Sign.EMPTY != sign) {
+            RequestDispatcher dispatcher = getServletContext().getRequestDispatcher("/index.jsp");
+            dispatcher.forward(req, resp);
+            return;
+        }
+
         field.getField().put(index, Sign.CROSS);
+
+        if (checkWin(resp, session, field)) {
+            return;
+        }
+
+        int emptyFieldIndex = field.getEmptyFieldIndex();
+
+        if (emptyFieldIndex >= 0) {
+            field.getField().put(emptyFieldIndex, Sign.NOUGHT);
+            if (checkWin(resp, session, field)) {
+                return;
+            }
+        } else {
+            session.setAttribute("draw", true);
+            List<Sign> data = field.getFieldData();
+            session.setAttribute("data", data);
+            resp.sendRedirect("/index.jsp");
+            return;
+        }
 
         List<Sign> data = field.getFieldData();
 
@@ -27,8 +55,6 @@ public class LogicServlet extends HttpServlet {
         session.setAttribute("field", field);
 
         resp.sendRedirect("/index.jsp");
-
-
     }
 
     private int getSelectedIndex(HttpServletRequest request) {
@@ -45,5 +71,18 @@ public class LogicServlet extends HttpServlet {
             throw new RuntimeException("session is broken");
         }
         return (Field) fieldAttribute;
+    }
+
+    private boolean checkWin(HttpServletResponse resp, HttpSession session, Field field) throws IOException {
+        Sign winner = field.checkWin();
+        if (Sign.CROSS == winner || Sign.NOUGHT == winner) {
+            session.setAttribute("winner", winner);
+
+            List<Sign> data = field.getFieldData();
+            session.setAttribute("data", data);
+            resp.sendRedirect("/index.jsp");
+            return true;
+        }
+        return false;
     }
 }
